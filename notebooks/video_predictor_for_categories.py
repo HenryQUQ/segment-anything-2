@@ -6,6 +6,7 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 from PIL import Image, ImageDraw
+
 import gradio as gr
 import cv2
 import random
@@ -18,10 +19,10 @@ logged_in_users = set()
 device = torch.device("cuda")
 
 # use bfloat16 for the entire notebook
-torch.autocast("cuda", dtype=torch.bfloat16).__enter__()
-if torch.cuda.get_device_properties(0).major >= 8:
-    torch.backends.cuda.matmul.allow_tf32 = True
-    torch.backends.cudnn.allow_tf32 = True
+# torch.autocast("cuda", dtype=torch.bfloat16).__enter__()
+# if torch.cuda.get_device_properties(0).major >= 8:
+#     torch.backends.cuda.matmul.allow_tf32 = True
+#     torch.backends.cudnn.allow_tf32 = True
 
 from sam2.build_sam import build_sam2_video_predictor
 
@@ -35,7 +36,7 @@ video_segments = {}
 temp_dir = "/home/chenyuan/segment-anything-2/temp"
 
 shutil.rmtree(temp_dir, ignore_errors=True)
-os.makedirs(temp_dir, exist_ok=True)
+# os.makedirs(temp_dir, exist_ok=True)
 
 current_temp_dir = None
 
@@ -108,6 +109,9 @@ def set_start_end_sec(total_frames, min):
     max_sec = max(59, total_frames//25 - min*60)
     return gr.update(visible=True, maximum=max_sec), gr.update(visible=True, maximum=max_sec)
 
+def set_first_frame(start_min, start_sec):
+    first_frame = start_min*25 + start_sec
+    return gr.update()
 def set_clip_time(start_min, start_sec, end_min, end_sec):
     if not (isinstance(start_min, int) and isinstance(start_sec, int) and isinstance(end_min, int) and isinstance(end_sec, int)):
         gr.Error("Please select the start and end time")
@@ -167,7 +171,6 @@ def choose_video_source(current_video_choice, video_dir):
     start_time_min, end_time_min=set_start_end_min(len(frame_names))
     return (video_dir,
             frame_names,
-            gr.update(maximum=len(frame_names), visible=True, value=1),
             gr.update(value= len(frame_names)),
             start_time_min, end_time_min,
             gr.update(value=Image.open(os.path.join(video_dir, frame_names[0]))),
@@ -399,7 +402,7 @@ with gr.Blocks() as demo:
 
     refresh_button.click(list_all_files, outputs=[video_choice])
     video_choice.change(choose_video_source, inputs=[video_choice, video_dir],
-                        outputs=[video_dir, frame_names, frame_index, total_seconds, start_time_min, end_time_min,input_img, output_dir])
+                        outputs=[video_dir, frame_names, total_seconds, start_time_min, end_time_min,input_img, output_dir])
 
     start_time_min.change(set_start_end_sec, inputs=[total_seconds, start_time_min], outputs=[start_time_sec, end_time_sec])
     set_clip_button.click(set_clip_time, inputs=[start_time_min, start_time_sec, end_time_min, end_time_sec])
