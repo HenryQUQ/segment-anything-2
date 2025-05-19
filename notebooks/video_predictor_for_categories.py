@@ -3,6 +3,7 @@ import os
 # if using Apple MPS, fall back to CPU for unsupported ops
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 import numpy as np
+import shutil
 import torch
 import matplotlib.pyplot as plt
 from PIL import Image, ImageDraw
@@ -14,8 +15,6 @@ import shutil
 
 logged_in_users = set()
 
-
-
 device = torch.device("cuda")
 
 # use bfloat16 for the entire notebook
@@ -26,7 +25,7 @@ device = torch.device("cuda")
 
 from sam2.build_sam import build_sam2_video_predictor
 
-sam2_checkpoint = "../checkpoints/sam2_hiera_small.pt"
+sam2_checkpoint = "/home/chenyuan/segment-anything-2/checkpoints/sam2_hiera_small.pt"
 model_cfg = "sam2_hiera_s.yaml"
 
 predictor = None
@@ -43,7 +42,7 @@ current_temp_dir = None
 input_root_dir = '/usb/segment-anything-2-input/'
 output_root_dir = "/usb/segment-anything-2-output-for-action-localisation"
 
-
+working_dir = '/usb/segment-anything-2-input/working'
 
 
 def login(request: gr.Request):
@@ -54,7 +53,6 @@ def login(request: gr.Request):
         gr.Error(f"{logged_in_users} is using the tool, please wait for a while", visible=True)
         return gr.update(visible=False), []
 
-
     logged_in_users.add(username)
     gr.Info("Login successfully")
 
@@ -63,7 +61,6 @@ def login(request: gr.Request):
     inference_state = None
     video_segments = {}
 
-
     return gr.update(visible=True), list_all_files()
 
 
@@ -71,6 +68,7 @@ def logout(request: gr.Request):
     global logged_in_users
     logged_in_users.remove(request.session_hash)
     return gr.Info("Logout successfully")
+
 
 def force_offload():
     global logged_in_users
@@ -103,17 +101,23 @@ def show_mask_pil(mask, obj_id=None, random_color=False):
 
 
 def set_start_end_min(total_frames):
-    return gr.update(visible=True, maximum=total_frames//25//60), gr.update(visible=True, maximum=total_frames//25//60)
+    return gr.update(visible=True, maximum=total_frames // 25 // 60), gr.update(visible=True,
+                                                                                maximum=total_frames // 25 // 60)
 
-def set_start_end_sec(total_frames, min):
-    max_sec = max(59, total_frames//25 - min*60)
-    return gr.update(visible=True, maximum=max_sec), gr.update(visible=True, maximum=max_sec)
+
+def set_start_end_sec(total_frames, minuntes):
+    max_sec = min(59, total_frames // 25 - minuntes * 60)
+    return gr.update(visible=True, maximum=max_sec)
+
 
 def set_first_frame(start_min, start_sec):
-    first_frame = start_min*25 + start_sec
+    first_frame = start_min * 25 + start_sec
     return gr.update()
+
+
 def set_clip_time(start_min, start_sec, end_min, end_sec):
-    if not (isinstance(start_min, int) and isinstance(start_sec, int) and isinstance(end_min, int) and isinstance(end_sec, int)):
+    if not (isinstance(start_min, int) and isinstance(start_sec, int) and isinstance(end_min, int) and isinstance(
+            end_sec, int)):
         gr.Error("Please select the start and end time")
     start_frame = (start_min * 60 + start_sec) * 25
     end_frame = (end_min * 60 + end_sec) * 25
@@ -161,18 +165,46 @@ def choose_video_source(current_video_choice, video_dir):
 
     frame_names = scan_all_images(video_dir)
 
-
     global current_temp_dir
     current_temp_dir = os.path.join(temp_dir, str(random.randint(0, 1000000)))
     os.makedirs(current_temp_dir, exist_ok=True)
 
     output_dir = os.path.join(output_root_dir, f'{os.path.basename(video_dir)}-on_process')
 
-    start_time_min, end_time_min=set_start_end_min(len(frame_names))
+    start_time_min, end_time_min = set_start_end_min(len(frame_names))
     return (video_dir,
             frame_names,
-            gr.update(value= len(frame_names)),
+            gr.update(value=len(frame_names)),
             start_time_min, end_time_min,
+            gr.update(value=Image.open(os.path.join(video_dir, frame_names[0]))),
+            output_dir)
+
+
+def confirm_frames(current_video_choice, start_time_min, start_time_sec, end_time_min, end_time_sec):
+    video_dir = os.path.join(input_root_dir, current_video_choice)
+
+    # frame_names = scan_all_images(video_dir)
+
+    start_frame = int((start_time_min * 60 + start_time_sec) * 25)
+    end_frame = int((end_time_min * 60 + end_time_sec) * 25)
+
+    frame_names = [f'{start_frame + i:05d}.jpg' for i in range(end_frame - start_frame + 1)]
+    global working_dir
+    shutil.rmtree(working_dir, ignore_errors=True)
+    os.makedirs(working_dir, exist_ok=True)
+    for index in range(len(frame_names)):
+        shutil.copy(os.path.join(video_dir, frame_names[index]), os.path.join(working_dir, frame_names[index]))
+
+    global inference_state
+    inference_state = predictor.init_state(video_path=working_dir)
+    predictor.reset_state(inference_state)
+
+    output_dir = os.path.join(output_root_dir, f'{os.path.basename(video_dir)}')
+
+    os.makedirs(output_dir, exist_ok=True)
+    return (video_dir,
+            frame_names,
+            gr.update(maximum=len(frame_names), visible=True),
             gr.update(value=Image.open(os.path.join(video_dir, frame_names[0]))),
             output_dir)
 
@@ -254,7 +286,7 @@ def propagate_mask(video_dir, frame_names, output_index):
 
     predictor.cpu()
 
-    return image, gr.update(interactive=True)
+    return image, gr.update(maximum=len(frame_names), visible=True, interactive=True)
 
 
 def change_frame_for_output(output_index, video_dir, frame_names):
@@ -298,14 +330,14 @@ def composite_video_fn(frame_names, video_dir):
     return video_path
 
 
-def save_masks(output_dir):
-    os.makedirs(output_dir, exist_ok=True)
+def save_masks(output_dir, postfix, start_time_min, start_time_sec, end_time_min, end_time_sec):
+    suboutput_dir = os.path.join(output_dir, f'{start_time_min}:{start_time_sec}-{end_time_min}:{end_time_sec}-{postfix}')
+    os.makedirs(suboutput_dir, exist_ok=True)
     import pickle
-    with open(os.path.join(output_dir, "masks.pkl"), "wb") as f:
+    with open(os.path.join(suboutput_dir, "masks.pkl"), "wb") as f:
         pickle.dump(video_segments, f)
 
-    gr.Info("Masks saved to " + os.path.join(output_dir, "masks.pkl"))
-
+    gr.Info("Masks saved to " + os.path.join(suboutput_dir, "masks.pkl"))
 
 
 def list_all_files():
@@ -314,15 +346,14 @@ def list_all_files():
 
     saved_choice = os.listdir(output_root_dir)
 
-    video_choices = [choice for choice in video_choices if choice not in saved_choice]
-
+    # video_choices = [choice for choice in video_choices if choice not in saved_choice]
 
     video_choices = [choice for choice in video_choices if os.path.isdir(os.path.join(input_root_dir, choice))]
-
 
     video_choices.sort()
 
     return gr.update(choices=video_choices)
+
 
 start_instructions = """
 <h1>Internal Labeling Tool for action labelling by Segment Anything 2</h1>
@@ -337,11 +368,10 @@ start_instructions = """
     <li>Click on "Save masks" to save the masks</li>
 </ol>
 <p>Notes:</p>
-<p> If using all frames, the memory usage will be more than 100GB. So the video will be separated into segments, each segment has 1500 frames maximum.</p>
+<p> If using all frames, the memory usage will be more than 100GB. So all clip should be less than 1500 frames maximum.</p>
 """
 with gr.Blocks() as demo:
     list_all_files()
-
 
     instruction = gr.HTML(start_instructions)
 
@@ -350,7 +380,7 @@ with gr.Blocks() as demo:
     prompt_dot = gr.Json(value=[], visible=False)
     prompt_label = gr.Json(value=[], visible=False)
 
-    video_dir = gr.Text(visible=False, label="Video directory")
+    video_dir = gr.Text(value='',visible=False, label="Video directory")
     frame_names = gr.Json(value=[], visible=False)
 
     output_dir = gr.Text(visible=False, label="Output directory")
@@ -368,14 +398,16 @@ with gr.Blocks() as demo:
 
             with gr.Group():
                 total_seconds = gr.Json(value=0, visible=False)
-                with gr.Column():
-                    start_time_min = gr.Slider(0, 0, 0, step=1, interactive=True, visible=False, label="Start time (min)")
-                    start_time_sec = gr.Slider(0, 0, 0, step=1, interactive=True, visible=False, label="Start time (sec)")
-                with gr.Column():
-                    end_time_min = gr.Slider(0, 0, 0, step=1, interactive=True, visible=False, label="End time (min)")
-                    end_time_sec = gr.Slider(0, 0, 0, step=1, interactive=True, visible=False, label="End time (sec)")
+                with gr.Row():
+                    start_time_min = gr.Number(0, 0, 0, step=1, minimum=0, interactive=True, label="Start time (min)")
+                    start_time_sec = gr.Number(0, 0, 0, minimum=0, maximum=59.9, interactive=True,
+                                               label="Start time (sec)")
+                with gr.Row():
+                    end_time_min = gr.Number(0, 0, 0, step=1, minimum=0, interactive=True, label="End time (min)")
+                    end_time_sec = gr.Number(0, 0, 0, minimum=0, maximum=59.9, interactive=True,
+                                             label="End time (sec)")
 
-                set_clip_button = gr.Button("Set clip time", interactive=False, visible=False)
+                set_clip_button = gr.Button("Set clip time", interactive=True, visible=True)
             frame_index = gr.Slider(1, 0, 1, step=1, interactive=True, visible=False, label="Frame index")
             with gr.Group():
                 input_img = gr.Image(type="pil", interactive=False, label="Original Frame")
@@ -393,19 +425,25 @@ with gr.Blocks() as demo:
 
             final_video = gr.Video(label="Masked video", interactive=False)
 
+            postfix = gr.Textbox(value="", label="Postfix", visible=True)
+
             save_button = gr.Button("Save masks")
 
             demo.load(login, None, [row, video_choice])
             demo.unload(logout)
 
+    with gr.Row():
+        gr.FileExplorer(glob=f"**/*",root_dir=output_root_dir, label="Output directory", visible=True, interactive=False)
+
     force_offload_button.click(force_offload)
 
     refresh_button.click(list_all_files, outputs=[video_choice])
-    video_choice.change(choose_video_source, inputs=[video_choice, video_dir],
-                        outputs=[video_dir, frame_names, total_seconds, start_time_min, end_time_min,input_img, output_dir])
+    # video_choice.change(choose_video_source, inputs=[video_choice, video_dir],
+    #                     outputs=[video_dir, frame_names, total_seconds, start_time_min, end_time_min, input_img,
+    #                              output_dir])
 
-    start_time_min.change(set_start_end_sec, inputs=[total_seconds, start_time_min], outputs=[start_time_sec, end_time_sec])
-    set_clip_button.click(set_clip_time, inputs=[start_time_min, start_time_sec, end_time_min, end_time_sec])
+
+    set_clip_button.click(confirm_frames, inputs=[video_choice, start_time_min, start_time_sec, end_time_min, end_time_sec], outputs=[video_dir, frame_names, frame_index,input_img,  output_dir])
     frame_index.change(change_frame, inputs=[frame_index, video_dir, frame_names],
                        outputs=[input_img, prompt_dot, prompt_label])
     clear_button.click(clear_all_points, inputs=[video_dir, frame_index, frame_names],
@@ -423,11 +461,8 @@ with gr.Blocks() as demo:
 
     composite_video.click(composite_video_fn, inputs=[frame_names, video_dir], outputs=[final_video])
 
-    save_button.click(save_masks, inputs=[output_dir], outputs=[instruction])
-
-
-
+    save_button.click(save_masks, inputs=[output_dir, postfix, start_time_min, start_time_sec, end_time_min, end_time_sec], outputs=[instruction])
 
 demo.launch(server_name="0.0.0.0", server_port=7860, max_threads=1, show_error=True,
-# auth=[("chenyuan", "chenyuan"), ("yuqi", "yuqi"), ("qiming", "qiming"), ('chenhao', 'chenhao'), ('xiaohan', 'xiaohan'), ('jianbo', 'jianbo')])
+            # auth=[("chenyuan", "chenyuan"), ("yuqi", "yuqi"), ("qiming", "qiming"), ('chenhao', 'chenhao'), ('xiaohan', 'xiaohan'), ('jianbo', 'jianbo')])
             )
