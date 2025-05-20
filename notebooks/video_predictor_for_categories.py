@@ -1,5 +1,7 @@
 import os
 
+from jinja2.ext import debug
+
 # if using Apple MPS, fall back to CPU for unsupported ops
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 import numpy as np
@@ -482,6 +484,6 @@ with gr.Blocks() as demo:
 
     save_button.click(save_masks, inputs=[output_dir, postfix, start_time_min, start_time_sec, end_time_min, end_time_sec], outputs=[instruction])
 
-demo.launch(server_name="0.0.0.0", server_port=7861, show_error=True,
+demo.launch(server_name="0.0.0.0", server_port=7861, show_error=True, debug=True, share=True
             # auth=[("chenyuan", "chenyuan"), ("yuqi", "yuqi"), ("qiming", "qiming"), ('chenhao', 'chenhao'), ('xiaohan', 'xiaohan'), ('jianbo', 'jianbo')])
             )
