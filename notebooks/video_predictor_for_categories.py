@@ -58,6 +58,7 @@ def login(request: gr.Request):
 
     global predictor, inference_state, video_segments
     predictor = build_sam2_video_predictor(model_cfg, sam2_checkpoint, device=device)
+    predictor.cuda()
     inference_state = None
     video_segments = {}
 
@@ -258,13 +259,11 @@ def generate_mask(prompt_dot, prompt_label, frame_index, video_dir, frame_names)
     except:
         pass
 
-    predictor.cpu()
 
     return image, gr.update(interactive=True)
 
 
 def propagate_mask(video_dir, frame_names, output_index):
-    predictor.cuda()
     global video_segments
     for out_frame_idx, out_obj_ids, out_mask_logits in predictor.propagate_in_video(inference_state):
         video_segments[out_frame_idx] = {
@@ -284,7 +283,6 @@ def propagate_mask(video_dir, frame_names, output_index):
         except:
             pass
 
-    predictor.cpu()
 
     return image, gr.update(maximum=len(frame_names), visible=True, interactive=True)
 
