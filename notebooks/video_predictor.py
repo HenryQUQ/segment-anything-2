@@ -39,8 +39,8 @@ os.makedirs(temp_dir, exist_ok=True)
 
 current_temp_dir = None
 
-input_root_dir = '/usb/segment-anything-2-input/'
-output_root_dir = "/usb/segment-anything-2-output"
+input_root_dir = '/bask/projects/j/jiaoj-3d-vision/360XProject/segment-anything-2-input'
+output_root_dir = "/bask/projects/j/jiaoj-3d-vision/360XProject/segment-anything-2-output"
 
 
 
