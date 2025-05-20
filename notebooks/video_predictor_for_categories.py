@@ -25,24 +25,24 @@ device = torch.device("cuda")
 
 from sam2.build_sam import build_sam2_video_predictor
 
-sam2_checkpoint = "/home/chenyuan/segment-anything-2/checkpoints/sam2_hiera_small.pt"
+sam2_checkpoint = "../checkpoints/sam2_hiera_small.pt"
 model_cfg = "sam2_hiera_s.yaml"
 
 predictor = None
 inference_state = None
 video_segments = {}
 
-temp_dir = "/home/chenyuan/segment-anything-2/temp"
+temp_dir = "/bask/projects/j/jiaoj-3d-vision/360XProject/segment-anything-2/temp"
 
 shutil.rmtree(temp_dir, ignore_errors=True)
-# os.makedirs(temp_dir, exist_ok=True)
+os.makedirs(temp_dir, exist_ok=True)
 
 current_temp_dir = None
 
-input_root_dir = '/usb/segment-anything-2-input/'
-output_root_dir = "/usb/segment-anything-2-output-for-action-localisation"
+input_root_dir = '/bask/projects/j/jiaoj-3d-vision/360XProject/segment-anything-2-input'
+output_root_dir = "/bask/projects/j/jiaoj-3d-vision/360XProject/segment-anything-2-output"
 
-working_dir = '/usb/segment-anything-2-input/working'
+working_dir = '/bask/projects/j/jiaoj-3d-vision/360XProject/segment-anything-2-input/working'
 
 
 def login(request: gr.Request):
