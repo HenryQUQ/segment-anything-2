@@ -464,6 +464,6 @@ with gr.Blocks() as demo:
 
     save_button.click(save_masks, inputs=[output_dir, postfix, start_time_min, start_time_sec, end_time_min, end_time_sec], outputs=[instruction])
 
-demo.launch(server_name="0.0.0.0", server_port=7860, max_threads=1, show_error=True,
+demo.launch(server_name="0.0.0.0", server_port=7861, show_error=True,
             # auth=[("chenyuan", "chenyuan"), ("yuqi", "yuqi"), ("qiming", "qiming"), ('chenhao', 'chenhao'), ('xiaohan', 'xiaohan'), ('jianbo', 'jianbo')])
             )
