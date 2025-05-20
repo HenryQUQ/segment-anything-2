@@ -32,7 +32,7 @@ predictor = None
 inference_state = None
 video_segments = {}
 
-temp_dir = "/home/chenyuan/segment-anything-2/temp"
+temp_dir = "/bask/projects/j/jiaoj-3d-vision/360XProject/segment-anything-2/temp"
 
 shutil.rmtree(temp_dir, ignore_errors=True)
 os.makedirs(temp_dir, exist_ok=True)

@@ -2,7 +2,7 @@ import cv2
 import os
 from tqdm import tqdm
 
-root ='/usb/panoramic/datasets--quchenyuan--360x_dataset_HR/snapshots/e8da2eeb18e86784b3913b22ca947e27bda41187/panoramic'
+root ='/bask/projects/j/jiaoj-3d-vision/360x_official_launch/360x_dataset/360x_dataset_original_resolution/panoramic'
 
 video_list = os.listdir(root)
 
@@ -14,7 +14,7 @@ video_list = [os.path.join(root, path) for path in video_list]
 #         if os.path.exists(video_path):
 #             video_list.append(video_path)
 
-output_folder = '/usb/segment-anything-2-input/'
+output_folder = '/bask/projects/j/jiaoj-3d-vision/360XProject/segment-anything-2-input'
 os.makedirs(output_folder, exist_ok=True)
 
 
