@@ -78,6 +78,7 @@ def force_offload():
 
 
 def show_mask_pil(mask, obj_id=None, random_color=False):
+    print('show_mask_pil')
     # 如果使用随机颜色
     if random_color:
         color = np.concatenate([np.random.random(3) * 255, np.array([153])], axis=0).astype(np.uint8)
@@ -102,21 +103,25 @@ def show_mask_pil(mask, obj_id=None, random_color=False):
 
 
 def set_start_end_min(total_frames):
+    print('set_start_end_min')
     return gr.update(visible=True, maximum=total_frames // 25 // 60), gr.update(visible=True,
                                                                                 maximum=total_frames // 25 // 60)
 
 
 def set_start_end_sec(total_frames, minuntes):
+    print('set_start_end_sec')
     max_sec = min(59, total_frames // 25 - minuntes * 60)
     return gr.update(visible=True, maximum=max_sec)
 
 
 def set_first_frame(start_min, start_sec):
+    print('set_first_frame')
     first_frame = start_min * 25 + start_sec
     return gr.update()
 
 
 def set_clip_time(start_min, start_sec, end_min, end_sec):
+    print('set_clip_time')
     if not (isinstance(start_min, int) and isinstance(start_sec, int) and isinstance(end_min, int) and isinstance(
             end_sec, int)):
         gr.Error("Please select the start and end time")
@@ -128,6 +133,7 @@ def set_clip_time(start_min, start_sec, end_min, end_sec):
 
 
 def create_box(mask):
+    print('create_box')
     # 提取非零元素的坐标
     y, x = np.where(mask[0])
 
@@ -139,6 +145,7 @@ def create_box(mask):
 
 
 def show_box_pil(box, image, color='green', width=2):
+    print('show_box_pil')
     # 创建一个可绘制的Draw对象
     draw = ImageDraw.Draw(image)
 
@@ -153,6 +160,7 @@ def show_box_pil(box, image, color='green', width=2):
 
 
 def scan_all_images(video_dir):
+    print('scan_all_images')
     frame_names = [
         p for p in os.listdir(video_dir)
         if os.path.splitext(p)[-1] in [".jpg", ".jpeg", ".JPG", ".JPEG"]
@@ -162,6 +170,7 @@ def scan_all_images(video_dir):
 
 
 def choose_video_source(current_video_choice, video_dir):
+    print('choose_video_source')
     video_dir = os.path.join(input_root_dir, current_video_choice)
 
     frame_names = scan_all_images(video_dir)
@@ -182,6 +191,7 @@ def choose_video_source(current_video_choice, video_dir):
 
 
 def confirm_frames(current_video_choice, start_time_min, start_time_sec, end_time_min, end_time_sec):
+    print('confirm_frames')
     video_dir = os.path.join(input_root_dir, current_video_choice)
 
     # frame_names = scan_all_images(video_dir)
@@ -211,14 +221,17 @@ def confirm_frames(current_video_choice, start_time_min, start_time_sec, end_tim
 
 
 def change_frame(frame_index, video_dir, frame_names):
+    print('change_frame')
     return gr.update(value=Image.open(os.path.join(video_dir, frame_names[frame_index - 1]))), [], []
 
 
 def clear_all_points(video_dir, frame_index, frame_names):
+    print('clear_all_points')
     return gr.update(value=Image.open(os.path.join(video_dir, frame_names[frame_index - 1]))), [], []
 
 
 def click_image(image, evt: gr.SelectData, label_radio, prompt_dot, prompt_label):
+    print('click_image')
     # 获取点击的x和y坐标
     x, y = int(evt.index[0]), int(evt.index[1])
 
@@ -237,6 +250,7 @@ def click_image(image, evt: gr.SelectData, label_radio, prompt_dot, prompt_label
 
 
 def generate_mask(prompt_dot, prompt_label, frame_index, video_dir, frame_names):
+    print('generate_mask')
     predictor.cuda()
     if not prompt_dot:
         gr.Error("Please click on the image to label the object")
@@ -264,6 +278,7 @@ def generate_mask(prompt_dot, prompt_label, frame_index, video_dir, frame_names)
 
 
 def propagate_mask(video_dir, frame_names, output_index):
+    print('propagate_mask')
     global video_segments
     for out_frame_idx, out_obj_ids, out_mask_logits in predictor.propagate_in_video(inference_state):
         video_segments[out_frame_idx] = {
@@ -288,6 +303,7 @@ def propagate_mask(video_dir, frame_names, output_index):
 
 
 def change_frame_for_output(output_index, video_dir, frame_names):
+    print('change_frame_for_output')
     image = Image.open(os.path.join(video_dir, frame_names[output_index - 1]))
     for out_obj_id, out_mask in video_segments[output_index - 1].items():
         mask = show_mask_pil(out_mask, obj_id=out_obj_id)
@@ -304,7 +320,7 @@ def change_frame_for_output(output_index, video_dir, frame_names):
 
 
 def composite_video_fn(frame_names, video_dir):
-
+    print('composite_video_fn')
     global current_temp_dir
     global video_segments
 
@@ -332,6 +348,7 @@ def composite_video_fn(frame_names, video_dir):
 
 
 def save_masks(output_dir, postfix, start_time_min, start_time_sec, end_time_min, end_time_sec):
+    print('save_masks')
     suboutput_dir = os.path.join(output_dir, f'{start_time_min}:{start_time_sec}-{end_time_min}:{end_time_sec}-{postfix}')
     os.makedirs(suboutput_dir, exist_ok=True)
     import pickle
@@ -342,6 +359,7 @@ def save_masks(output_dir, postfix, start_time_min, start_time_sec, end_time_min
 
 
 def list_all_files():
+    print('list_all_files')
     global video_choices
     video_choices = os.listdir(input_root_dir)
 
