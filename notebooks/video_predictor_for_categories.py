@@ -304,9 +304,12 @@ def change_frame_for_output(output_index, video_dir, frame_names):
 
 
 def composite_video_fn(frame_names, video_dir):
+
     global current_temp_dir
     global video_segments
 
+    current_temp_dir = os.path.join(temp_dir, str(random.randint(0, 1000000)))
+    os.makedirs(current_temp_dir, exist_ok=True)
     for frame_idx, frame_name in enumerate(frame_names):
         image = Image.open(os.path.join(video_dir, frame_name))
         for out_obj_id, out_mask in video_segments[frame_idx].items():
